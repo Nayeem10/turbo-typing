@@ -78,10 +78,16 @@ bool serverConnect(){
 
 #endif
 
+char* gameData(){
+    char *buffer = malloc(322);
+    read(client_socket,buffer, 32);
+    return buffer;
+}
+
 void sendToServer(float data) {
     char message[10];
     sprintf(message,"%.3f",data);
-    ssize_t bytes_sent = send(client_socket, message, strlen(message), 0);
+    send(client_socket, message, strlen(message), 0);
 }
 
 char* receiveStr(){
@@ -91,9 +97,13 @@ char* receiveStr(){
     return message;
 }
 
+void sendStr(char *message){
+    send(client_socket, message, 16, 0);
+}
+
 float receiveFromServer(){
     char message[10];
-    recv(client_socket, message, 1024, 0);
+    recv(client_socket, message, 10, 0);
     if(strlen(message) == 0){
         return 0;
     }
@@ -107,6 +117,7 @@ float receiveFromServer(){
     ret += ((float)(message[i+1] - '0') / 10.0);
     ret += ((float)(message[i+2] - '0') / 100.0);
     ret += ((float)(message[i+3] - '0') / 1000.0);
+    
     return ret;
 }
 

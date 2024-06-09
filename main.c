@@ -54,21 +54,84 @@ bool isCapsLockOn(){
 
 bool isCapsLockOn();
 bool initialize();
-void process_inputStart();
-void process_inputFinished();
-void renderFinished();
 void setupPractice();
 void process_inputPractice();
 void updatePractice();
 void renderPractice();
+void cleanUpPractice();
 bool setupMultiPlayer();
 void process_inputMultiPlayer();
 void updateMultiPlayer();
 void renderMultiPlayer();
+void cleanUpMultiplayer();
 void destroy_window();
 void renderMultipleLines(SDL_Renderer* renderer, TTF_Font* font, const char* text, SDL_Color color, int textX, int textY);
 
+Button *musicOnButton, *musicOffButton;
+void musicButtonHandler(){
+    if(musicOn){
+        Mix_HaltMusic();
+        resetState(musicOnButton);
+    }else{
+        Mix_PlayMusic(music, -1);
+        resetState(musicOffButton);
+    }
+    musicOn ^= 1;
+}
 
+
+
+Button *retryButton;
+void retryButtonHandler(){
+    setupPractice();
+}
+
+
+int difficulty = 1, randomTextSize = 100;
+Button *easyButton;
+void easyButtonHandler(){
+    difficulty = 0;
+    randomTextSize = 100;
+    setupPractice();
+    windowState[3] = 0;
+    windowState[4] = 1;
+}
+
+Button *mediumButton;
+void mediumButtonHandler(){
+    difficulty = 1;
+    randomTextSize = 200;
+    setupPractice();
+    windowState[3] = 0;
+    windowState[4] = 1;
+}
+
+Button *hardButton;
+void hardButtonHandler(){
+    difficulty = 2;
+    randomTextSize = 300;
+    setupPractice();
+    windowState[3] = 0;
+    windowState[4] = 1;
+}
+
+Button *backButton;
+void backButtonHandler(){
+    if(windowState[4]){
+        windowState[4] = 0;
+        windowState[3] = 1;
+    }else if(windowState[5]){
+        windowState[5] = 0;
+        windowState[2] = 1;
+        cleanUpMultiplayer();
+    }else if(windowState[3]){
+        windowState[3] = 0;
+        windowState[2] = 1;
+        resetState(easyButton);
+        resetState(mediumButton);
+        resetState(mediumButton);
+    }
+}
 
 void wait(){
     int wait = FRAME_TARGET_TIME - (SDL_GetTicks() - last_frame_time);
@@ -78,9 +141,6 @@ void wait(){
     last_frame_time = SDL_GetTicks();
 }
 
-
-SDL_Window *usernameWin = NULL;
-SDL_Renderer *usernameRenderer = NULL;
 void initializeUsernameWindow(){
 
     usernameWin = SDL_CreateWindow(NULL, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 900, 400, SDL_WINDOW_SHOWN);
@@ -93,9 +153,8 @@ void initializeUsernameWindow(){
     if(!usernameRenderer){
         fprintf(stderr, "Error creating SDL Renderer. \n");
     }
-    loadImage(usernameRenderer, &Username, "username.jpg");
+    loadImage(usernameRenderer, &usernameTexture, "Images/username.jpg");
 }
-
 
 void gameStartWindow(){
     
@@ -112,24 +171,30 @@ void gameStartWindow(){
     }
     wait();
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    SDL_RenderCopy(renderer, preMenuImageTexture, NULL, NULL);
+    SDL_RenderCopy(renderer, gameStartTexture, NULL, NULL);
     SDL_RenderPresent(renderer);
 }
 
-
+bool maxLim = 0, minLim = 0;
 void usernameWindow(){
-    bool maxLim = 0, minLim = 0;
-    
+    if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE) {
+        if (event.window.windowID == SDL_GetWindowID(usernameWin)) {
+            maxLim = 0, minLim = 0;
+            windowState[0] = 1;
+            windowState[1] = 0;
+            username[0] = '\0';
+        }
+    }
+
     if(keyDown){
         if(pressedKey == SDLK_RETURN){
             if(username_index){
-                printf("%d", username_index);
                 FILE *cache = fopen("cache.txt", "w");
                 fprintf(cache,"%s",username);
                 fclose(cache);
                 windowState[1] = 0;
                 windowState[2] = 1;
-                
+                maxLim = 0, minLim = 0;
             }else{
                 minLim = 1;
             }
@@ -140,12 +205,12 @@ void usernameWindow(){
             }
             maxLim = 0;
         }else if(pressedKey >= 32 && pressedKey <= 126){
+            minLim = 0;
             if(username_index < 10){
                 username[username_index++] = pressedKey;
                 username[username_index] = '\0';
             }else{
                 maxLim = 1;
-                minLim = 0;
             }
         }
     }else if(mouseDown){
@@ -155,7 +220,6 @@ void usernameWindow(){
                 FILE *cache = fopen("cache.txt", "w");
                 fprintf(cache,"%s",username);
                 fclose(cache);
-                user_name = 0;
                 windowState[2] = 1;
                 windowState[1] = 0;
                 
@@ -163,7 +227,7 @@ void usernameWindow(){
                 minLim = 1;
             }
         }else if(mouseInBox(cancelBox)){
-            user_name = 0;
+            maxLim = 0; minLim = 0;
             windowState[0] = 1;
             windowState[1] = 0;
             username[0] = '\0';
@@ -171,48 +235,32 @@ void usernameWindow(){
     }
     wait();
 
-    
-    SDL_RenderCopy(usernameRenderer, Username, NULL, NULL);
-
+    SDL_RenderCopy(usernameRenderer, usernameTexture, NULL, NULL);
     
     renderText(usernameRenderer, dejavu, username, Cyan, typingBox.x + 10, typingBox.y + 5);
     
-    if(maxLim) renderText(usernameRenderer, dejavu, "Maximum limit reached! Please press Enter to proceed", Red, typingBox.x + 5, typingBox.y + typingBox.h + 5);
-    if(minLim) renderText(usernameRenderer, dejavu, "Username too short!", Red, typingBox.x + 5, typingBox.y + typingBox.h + 5);
+    if(maxLim) renderText(usernameRenderer, dejavu, "Maximum limit reached! Please press Enter to proceed", Red, typingBox.x - 60, typingBox.y + typingBox.h + 5);
+    if(minLim) renderText(usernameRenderer, dejavu, "usernameTexture too short!", Red, typingBox.x + 5, typingBox.y + typingBox.h + 5);
 
     SDL_RenderPresent(usernameRenderer);
 }
 
 bool zoomInLeft = 0, zoomInRight = 0;
 
-Button *musicOnButton, *musicOffButton;
-
-
-void call(){
-    if(musicOn){
-        Mix_HaltMusic();
-        resetState(musicOnButton);
-    }else{
-        Mix_PlayMusic(music, -1);
-        resetState(musicOffButton);
-    }
-    musicOn ^= 1;
-}
-
 void selectWindow(){
     
     if(mouseDown){
         if (mouseInBox(practiceBox)){
             windowState[2] = 0;
-            windowState[4] = 1; //practice
+            windowState[3] = 1; //practice
         }else if (mouseInBox(multiplayerBox)){
             windowState[2] = 0;
             windowState[5] = 1; //multiplayer
         }else if(mouseInBox(profileBox)){
             windowState[1] = 1;
             windowState[2] = 0;
-            username[0] = '\0';
-            username_index = 0;
+            //username[0] = '\0';
+            username_index = strlen(username);
             usernameSaved = 0;
             initializeUsernameWindow();
         }
@@ -226,7 +274,7 @@ void selectWindow(){
         }else if(pressedKey == SDLK_RETURN){
             if(zoomInLeft){
                 windowState[2] = 0;
-                windowState[4] = 1; //practice
+                windowState[3] = 1; //practice
                 zoomInLeft = 0;
             }else if(zoomInRight){
                 windowState[2] = 0;
@@ -237,7 +285,7 @@ void selectWindow(){
     }
     wait();
     
-    SDL_RenderCopy(renderer, Menu_selector, NULL, NULL);
+    SDL_RenderCopy(renderer, selectorTexture, NULL, NULL);
 
 
     SDL_Rect box1 = {practiceBox.x - 10, practiceBox.y - 10, practiceBox.w + 20, practiceBox.h + 20};
@@ -268,8 +316,31 @@ void selectWindow(){
 }
 
 void practiceOptionWindow(){
-    
+    wait();
 
+    updateButton(easyButton);
+    updateButton(mediumButton);
+    updateButton(hardButton);
+    updateButton(backButton);
+
+    SDL_RenderCopy(renderer, selectorTexture, NULL, NULL);
+    renderButton(easyButton);
+    renderButton(mediumButton);
+    renderButton(hardButton);
+    renderButton(backButton);
+    SDL_RenderPresent(renderer);
+}
+
+void countdown(int start) {
+    for (int i = start; i >= 0; i--) {
+        char sec[100];
+        sprintf(sec, "%d", i);
+        SDL_RenderCopy(renderer, boardTexture, NULL, NULL);
+        renderText(renderer, comicLarge, sec, Orange, 800, 400);
+        SDL_RenderPresent(renderer);
+        sleep(1);
+    }
+    last_frame_time = SDL_GetTicks();
 }
 
 int main(int argn, char *argv[]){
@@ -292,8 +363,6 @@ int main(int argn, char *argv[]){
         if(windowState[0]){
             gameStartWindow();
         }else if(windowState[1]){
-            // windowState[2] = 1;
-            // continue;
             usernameWindow();
             if(!windowState[1]){
                 SDL_DestroyRenderer(usernameRenderer);
@@ -301,28 +370,15 @@ int main(int argn, char *argv[]){
             }
         }else if(windowState[2]){
             selectWindow();
-            if(windowState[4]) setupPractice();
+            //if(windowState[4]) setupPractice();
             if(windowState[5]) {
                 if(!setupMultiPlayer()){
                     windowState[5] = 0;
                     windowState[2] = 1;
                 }
-                // else{
-                //     char count[10];
-                //     for(int i = 10; i >= 1; i--){
-                        
-                //         sprintf(count,"%d",i);
-                //         SDL_RenderCopy(renderer, spaceImageTexture, NULL, NULL);
-                //         renderText(renderer, dejavu, count, Black, 500, 500);
-                //         SDL_RenderPresent(renderer);
-                //         SDL_Delay(1000);
-                //     }
-                //     start = 1;
-                //     last_frame_time = SDL_GetTicks();
-                // }
             }
         }else if(windowState[3]){
-            
+            practiceOptionWindow();
         }else if(windowState[4]){
             process_inputPractice();
             updatePractice();
@@ -333,14 +389,9 @@ int main(int argn, char *argv[]){
                 updateMultiPlayer();
                 renderMultiPlayer();
             }else{
-                if(mouseDown){
-                    if (mouseX >= startTypingBox.x && mouseX <= (startTypingBox.x + startTypingBox.width) && mouseY >= startTypingBox.y && mouseY <= (startTypingBox.y + startTypingBox.height)) {
-                        start = 1;
-                        startTime = SDL_GetTicks();
-                    }
-                }
-                wait();
-                renderStart(&spaceImageTexture);
+                countdown(3);
+                start = 1;
+                startTime = SDL_GetTicks();
             }
             
         }
@@ -350,7 +401,6 @@ int main(int argn, char *argv[]){
     
     return 0;
 }
-
 
 int correctTextx, correctTexty;
 
@@ -428,7 +478,7 @@ bool initializeFont(){
     
     comicLarge = TTF_OpenFont(Font_Style[0], 45);
     for(char i = 0; i < 127; i++)
-        fontWidth[i] = getWidth(i);
+        fontWidth[(int)i] = getWidth(i);
     fontHeight = TTF_FontHeight(comic);
 
 
@@ -463,48 +513,29 @@ bool initializeMusic(){
 }
 
 bool initializeTexture(){
-    loadImage(renderer, &practiceBackgroundTexture, Background[0]);
+    loadImage(renderer, &boardTexture, "Images/board.jpg");
 
-    loadImage(renderer, &preMenuImageTexture, "preMenu.png");
+    loadImage(renderer, &gameStartTexture, "Images/gamestart.png");
 
-    loadImage(renderer, &Menu_selector, "MENU/menu_select.png");
+    loadImage(renderer, &selectorTexture, "Images/selector.jpg"); 
 
-    //loadImage(renderer, &Username, "username.jpg");
-
-    //loadImage(renderer, &musicOnTexture, "sound.png");
-
-    //loadImage(renderer, &musicOffTexture, "mute.png");
-
-    //loadImage(renderer, &backTexture, "back.png");
-
-    //loadImage(renderer, &retryTexture, Images[5]);
-
-    loadImage(renderer, &profileTexture, Images[4]);  
-
-    loadImage(renderer, &spaceImageTexture, Images[1]);
-
-    loadImage(renderer, &player1ImageTexture, Images[2]);
+    loadImage(renderer, &player1ImageTexture, "Images/player1.png");
     
-    loadImage(renderer, &player2ImageTexture, Images[3]);
+    loadImage(renderer, &player2ImageTexture, "Images/player2.png");
 
-    loadImage(renderer, &practiceTexture, "practice.png");
+    loadImage(renderer, &profileTexture, "Images/profile.png"); 
 
-    loadImage(renderer, &multiplayerTexture, "multiplayer.png");
+    loadImage(renderer, &practiceTexture, "Images/practice.png");
+
+    loadImage(renderer, &multiplayerTexture, "Images/multiplayer.png");
+
+    loadImage(renderer, &winnerTexture, "Images/winner.png");
+
+    loadImage(renderer, &loserTexture, "Images/loser.png");
 
     return 1;
 }
 
-Button *backButton;
-void backButtonFun(){
-    windowState[4] = 0;
-    windowState[2] = 1;
-}
-
-Button *retryButton;
-
-void retryButtonFun(){
-    setupPractice();
-}
 bool initialize(){
     bool state = 1;
     state &= initializeWindow();
@@ -512,118 +543,79 @@ bool initialize(){
     state &= initializeFont();
     state &= initializeTexture();
     state &= initializeMusic(); 
-    musicOnButton = createButton(renderer, "sound.png", "sound1.png", "sound2.png", musicBox, 10, &call);
-    musicOffButton = createButton(renderer, "mute.png", "mute1.png", "mute2.png", musicBox, 10, &call);
-    backButton = createButton(renderer, "back.png", "back.png", "back.png", backBox, 6, &backButtonFun);
-    retryButton = createButton(renderer, "retry.png", "retry.png", "retry.png", retryBox, 6, retryButtonFun);
+
+    musicOnButton = createButton(renderer, "Images/sound.png", "Images/sound1.png", "Images/sound2.png", musicBox, 10, &musicButtonHandler);
+    musicOffButton = createButton(renderer, "Images/mute.png", "Images/mute1.png", "Images/mute2.png", musicBox, 10, &musicButtonHandler);
+    backButton = createButton(renderer, "Images/back.png", "Images/back1.png", "Images/back2.png", backBox, 6, &backButtonHandler);
+    retryButton = createButton(renderer, "Images/retry.png", "Images/retry1.png", "Images/retry1.png", retryBox, 6, &retryButtonHandler);
+    easyButton = createButton(renderer, "Images/easy.png", "Images/easy1.png", "Images/easy1.png", easyBox, 10, &easyButtonHandler);
+    mediumButton = createButton(renderer, "Images/medium.png", "Images/medium1.png", "Images/medium1.png", mediumBox, 10, &mediumButtonHandler);
+    hardButton = createButton(renderer, "Images/hard.png", "Images/hard1.png", "Images/hard1.png", hardBox, 10, &hardButtonHandler);
+    
     return state;
 }
 
-void process_inputStart(){
-    
-    if(mouseDown){
-        if (mouseX >= startTypingBox.x && mouseX <= (startTypingBox.x + startTypingBox.width) && mouseY >= startTypingBox.y && mouseY <= (startTypingBox.y + startTypingBox.height)) {
-            start = 1;
-            startTime = SDL_GetTicks();
-        }
+int cursorTimer = 0;
+bool cursorVisible = 1;
+
+void renderTextAndCursor(int X, int Y){
+    if (SDL_GetTicks() - cursorTimer >= 400) {
+        cursorTimer = SDL_GetTicks();
+        //cursorVisible ^= 1;
+    }
+
+    char upper[400], lower[400];
+        
+    strncpy(upper, currentText, currentCharIndex);
+    upper[currentCharIndex]='\0';
+    renderMultipleLines(renderer, comic, upper, Green, X, Y);
+    if(!currentCharIndex){
+        correctTextx = X, correctTexty = Y;
+    }
+
+    if(cursorVisible){
+        SDL_Rect rectangle = {correctTextx, correctTexty, rec.width, rec.height};
+        SDL_SetRenderDrawColor(renderer, rec.color.r, rec.color.g, rec.color.b, 130);
+        SDL_RenderFillRect(renderer, &rectangle);
+    }
+
+    strcpy(lower, currentText + currentCharIndex);
+    renderMultipleLines(renderer, comic, lower , Yellow, correctTextx, correctTexty);
+}
+
+void renderPerfomance(){
+    char stats[20];
+        
+    sprintf(stats, "     WPM    :    %d",WPM);
+    renderText(renderer, comicLarge, stats, Orange, 200, 400);
+
+    sprintf(stats, "     CPM    :    %d",CPM);
+    renderText(renderer, comicLarge, stats, Orange, 200, 400 + fontHeight);
+
+    sprintf(stats, "Accuracy    :    %d%%",accuracy);
+    renderText(renderer, comicLarge, stats, Orange, 200, 400 + fontHeight*2);
+
+    drawGraph(renderer, points, pointCount, Orange, center, 800, 400);
+
+    if(windowState[5]){
+        
+        if(win) SDL_RenderCopy(renderer, winnerTexture, NULL, &winnerBox);
+        else if(loss) SDL_RenderCopy(renderer, loserTexture, NULL, &loserBox);
+        else renderText(renderer, comicLarge, "DRAW!!", Orange, 1000, 300);
     }
 }
 
-void renderStart(SDL_Texture** texture){
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-
-    SDL_RenderCopy(renderer, *texture, NULL, NULL); // Render the entire background
-
-    SDL_Rect rectangle = {
-        startTypingBox.x,
-        startTypingBox.y,
-        startTypingBox.width,
-        startTypingBox.height
-    };
-    SDL_SetRenderDrawColor(renderer, startTypingBox.color.r, startTypingBox.color.g, startTypingBox.color.b, 130);
-    SDL_RenderFillRect(renderer, &rectangle);
-
-    char text[] = "START TYPING";
-    renderText(renderer, dejavu, text, White, startTypingBox.x + 15, startTypingBox.y + 10);
-
-    SDL_RenderPresent(renderer);
+void calculatePerformance(){
+    int currentTime = SDL_GetTicks();
+    double time = currentTime - startTime + 1;
+    time = time / (1000.0*60.0);
+    WPM = start? ((double) wordCount / time) : 0;
+    CPM = start? ((double) charCount / time) : 0;
+    accuracy = totalTypedChar? ((100 * correctTypedChar )/ totalTypedChar) : 100;
 }
 
-void process_inputFinished(){
-    
-    if (mouseX >= playAgainBox.x && mouseX <= (playAgainBox.x + playAgainBox.width) && mouseY >= playAgainBox.y && mouseY <= (playAgainBox.y + playAgainBox.height)) {
-        playAgain = 0;
-        windowState[2] = 1;
-        finished = 0;
-    }
-}
-
-void renderFinished(){
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-
-    SDL_RenderCopy(renderer, practiceBackgroundTexture, NULL, NULL); // Render the entire background
-
-    
-    // Render rectangle
-    SDL_Rect rectangle = {
-        playAgainBox.x,
-        playAgainBox.y,
-        playAgainBox.width,
-        playAgainBox.height
-    };
-    SDL_SetRenderDrawColor(renderer, playAgainBox.color.r, playAgainBox.color.g, playAgainBox.color.b, 130);
-    SDL_RenderFillRect(renderer, &rectangle);
-
-    char text[] = "PLAY AGAIN";
-
-    renderText(renderer, dejavu, text, White, startTypingBox.x + 15, startTypingBox.y + 10);
-
-    SDL_RenderPresent(renderer);
-}
-
-// Use Comic.TTF for perfect character width
-
-
-SDL_Point points[10000];
-int pointGap = 5000; // 5s
-int pointCount = 0;
-int nextPointX = 0;
-
-int CPM = 0;
-int totalTypedChar = 0, correctTypedChar = 0;
-int accuracy = 0;
-
-void setupPractice(){
-    correctTextx = textPosx, correctTexty = textPosy;
-    currentText = generate_random_text();
-    maxTextSize = strlen(currentText);
-    currentCharIndex = 0;
-
-    charCount = 0;
-    for(int i = 0; i < maxTextSize; i++)
-        if(currentText[i] != '\n') charCount++;
-
-    //if(musicOn)
-    //    Mix_PlayMusic(music, -1);
-    
-    curWidth = fontWidth[currentText[0]];
-    rec.x = textPosx;
-    rec.y = textPosy;
-    rec.width = curWidth;
-    rec.height = fontHeight;
-    rec.color = White;
-    start = 0;
-    notMatch = 0;
-    match = 0;
-    wordCount = 0;
-    finished = 0;
-    pointCount = 0, nextPointX = 0;
-    totalTypedChar = 0, correctTypedChar = 0;
-
-}
-
-void addPoint(currentPointX){
-    
+void addPoint(){
+    int currentPointX = SDL_GetTicks();
     if(currentPointX > nextPointX){
         points[pointCount].x = currentPointX;
         points[pointCount].y = WPM;
@@ -632,12 +624,31 @@ void addPoint(currentPointX){
     }
 }
 
-void process_inputPractice(){
+
+void setupPractice(){
+    cleanUpPractice();
+    correctTextx = textPosx, correctTexty = textPosy;
+    currentText = generate_random_text(difficulty, randomTextSize);
+    maxTextSize = strlen(currentText);
+    currentCharIndex = 0;
+
+    charCount = 0;
+    for(int i = 0; i < maxTextSize; i++)
+        if(currentText[i] != '\n') charCount++;
     
+    rec.x = textPosx, rec.y = textPosy, rec.width = fontWidth[(int)currentText[0]], rec.height = fontHeight, rec.color = White;
+    start = 0, finished = 0;
+    notMatch = 0, match = 0;
+    WPM = 0;
+    wordCount = 0;
+    pointCount = 0, nextPointX = 0;
+    totalTypedChar = 0, correctTypedChar = 0;
+}
+
+void process_inputPractice(){
     if(keyDown && !start){
         start = 1;
         startTime = SDL_GetTicks();
-        addPoint(startTime);
     }
     match = false;
 
@@ -656,7 +667,7 @@ void process_inputPractice(){
         }
     }  
 }
-SDL_Point center = {500, 800};
+
 void updatePractice(){
     wait();
     
@@ -665,68 +676,33 @@ void updatePractice(){
     
     if(match){
         charCount++;
-        if(pressedKey == ' ')
+        if(pressedKey == ' '){
             wordCount++;
-        rec.x += curWidth;
+        }
+
         if(currentText[currentCharIndex] == '\n'){
             rec.y += 1.5*fontHeight;
             rec.x = textPosx;
             currentCharIndex++;
         }
-        curWidth = fontWidth[currentText[currentCharIndex]];
-
 
         if(currentCharIndex == maxTextSize){
             wordCount++;
-            finished = 1;
-            endTime = SDL_GetTicks();
-            practice = 0;
-            notMatch = 0;
-            printf("%d\n", pointCount);
-
+            cleanUpPractice();
         }
-        
     }
-    int currentTime = SDL_GetTicks();
+    
     if(!finished && start){
-        addPoint(currentTime);
-    }
-
-    double time = currentTime - startTime + 1;
-    time = time / (1000.0*60.0);
-    if(!finished){
-        WPM = start? ((double) wordCount / time) : 0;
-
-        CPM = start? ((double) charCount / time) : 0;
-
-        accuracy = totalTypedChar? ((100 * correctTypedChar )/ totalTypedChar) : 100;
-
+        calculatePerformance();
+        addPoint();
     }
 
     rec.color = notMatch? Red:White;
-    rec.width = curWidth;
-}
-
-void renderPerfomance(){
-    char stats[20];
-        
-    sprintf(stats, "     WPM    :    %d",WPM);
-    renderText(renderer, comicLarge, stats, Orange, 700, 100);
-
-    sprintf(stats, "     CPM    :    %d",CPM);
-    renderText(renderer, comicLarge, stats, Orange, 700, 100 + fontHeight);
-
-    sprintf(stats, "Accuracy    :    %d%%",accuracy);
-    renderText(renderer, comicLarge, stats, Orange, 700, 100 + fontHeight*2);
-
-    drawGraph(renderer, points, pointCount, Orange, center, 800, 400);
+    rec.width = fontWidth[(int) currentText[currentCharIndex]];
 }
 
 void renderPractice() {
-    //This allows the renderer to blend colors with the background based on the alpha value.
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-
-    SDL_RenderCopy(renderer, practiceBackgroundTexture, NULL, NULL); // Render the entire background
+    SDL_RenderCopy(renderer, boardTexture, NULL, NULL);
 
     renderButton(retryButton);
     renderButton(backButton);
@@ -735,71 +711,85 @@ void renderPractice() {
         char buff[10];
         sprintf(buff,"%d",WPM);
         renderText(renderer, dejavu, buff, Cyan, 900, 60);
-
-        char upper[400], lower[400];
-        
-        strncpy(upper, currentText, currentCharIndex);
-        upper[currentCharIndex]='\0';
-        renderMultipleLines(renderer, comic, upper, Green, textPosx, textPosy);
-        if(!currentCharIndex){
-            correctTextx = textPosx, correctTexty = textPosy;
-        }
-        SDL_Rect rectangle = {correctTextx, correctTexty, rec.width, rec.height};
-        SDL_SetRenderDrawColor(renderer, rec.color.r, rec.color.g, rec.color.b, 130);
-        SDL_RenderFillRect(renderer, &rectangle);
-        
-        strcpy(lower, currentText + currentCharIndex);
-        renderMultipleLines(renderer, comic, lower , Yellow, correctTextx, correctTexty);
-        retryBox.h = 70, retryBox.w = 70;
+        renderTextAndCursor(textPosx, textPosy);
     }else{
         renderPerfomance();
     }
 
-    
     SDL_RenderPresent(renderer);
 }
 
-int mulTexty = 500;
+void cleanUpPractice(){
+    if(!currentText)
+        free(currentText);
+    finished = 1;
+    notMatch = 0;
+    calculatePerformance();
+
+    points[pointCount].x = SDL_GetTicks();
+    points[pointCount].y = WPM;
+    pointCount++;
+    
+    endTime = SDL_GetTicks();
+    resizePoints(points, pointCount, center, 800, 400);
+}
+
+void assignAvatar(char *buffer){
+    char opponentName[64];
+    int i = 1, j = 0;
+    while(buffer[i]){
+        opponentName[j] = buffer[i];
+        j++, i++;
+    }
+    opponentName[j] = '\0';
+
+    myAvatar = first;
+    oppAvatar = second;
+
+    myAvatar.texture = player1ImageTexture;
+    oppAvatar.texture = player2ImageTexture;
+    if(buffer[0] == '1'){
+        Avatar tmp = myAvatar;
+        myAvatar = oppAvatar;
+        oppAvatar = tmp;
+    }
+
+    strcpy(myAvatar.name, username);
+    strcpy(oppAvatar.name, opponentName);
+    
+    free(buffer);
+}
 
 bool setupMultiPlayer(){
     bool status = serverConnect();
-
     if(!status) return 0;
 
-    start = 0;
     currentText = receiveStr();
+    sendStr(username);
     maxTextSize = strlen(currentText);
     currentCharIndex = 0;
 
-    capsOn = isCapsLockOn();
-
-    //
-    player1x = 20, player1y = 100;
-    player1Height = 150, player1Width = 200;
-    player1mx = 20, player1my = 100;
-
-    player2x = 20, player2y = 250;
-    player2Height = 100, player2Width = 220;
-    player2mx = 20, player2my = 250;
     int charCount = 0;
     for(int i = 0; i < maxTextSize; i++)
         if(currentText[i] != '\n') charCount++;
+    movementPerMatch = ((float)WIDTH - myAvatar.w - 20) / charCount;
 
-    movementPerMatch = ((float)WIDTH - player1Width - 20) / charCount;
-    //
-    match = 0, notMatch = 0;
-    curWidth = fontWidth[currentText[0]];
+    rec.x = textPosx, rec.y = mulTexty, rec.width = fontWidth[(int) currentText[0]], rec.height = fontHeight, rec.color = White;
 
-    rec.x = textPosx;
-    rec.y = mulTexty;
-    rec.width = curWidth;
-    rec.height = fontHeight;
-    rec.color = White;
+    capsOn = isCapsLockOn();
+    win = 0, loss = 0;
+    start = 0;
+    notMatch = 0;
+    match = 0;
+    wordCount = 0;
+    finished = 0;
+    pointCount = 0, nextPointX = 0;
+    totalTypedChar = 0, correctTypedChar = 0;
+    assignAvatar(gameData());
     return 1;
 }
 
 void process_inputMultiPlayer(){
-    
     match = false;
 
     if(pressedKey == SDLK_BACKSPACE){
@@ -816,6 +806,29 @@ void process_inputMultiPlayer(){
             notMatch = true;
         }
     }  
+}
+
+void updateObjects(){
+    charCount++;
+    if(pressedKey == ' ')
+        wordCount++;
+    rec.x += curWidth;
+    if(currentText[currentCharIndex] == '\n'){
+        rec.y += 1.5*fontHeight;
+        rec.x = textPosx;
+        currentCharIndex++;
+    }
+    rec.width = fontWidth[(int) currentText[currentCharIndex]];
+
+    if(currentCharIndex == maxTextSize){
+        sendToServer(myAvatar.x + movementPerMatch);
+        float tmp = receiveFromServer();
+        if(tmp != 0) oppAvatar.x = tmp;
+        wordCount++;
+        resizePoints(points, pointCount, center, 800, 400);
+        cleanUpMultiplayer();
+    }
+    myAvatar.x += movementPerMatch;
 }
 
 void updateMultiPlayer(){
@@ -827,72 +840,62 @@ void updateMultiPlayer(){
     float delta_time = (SDL_GetTicks() - last_frame_time) / 1000.0f;
     last_frame_time = SDL_GetTicks();
 
-    sendToServer(player1mx);
-    int tmp = receiveFromServer();
-    if(tmp != 0) player2mx = tmp;
-
-    if(player1mx>player1x){
-        player1x += delta_time * 80.0;  // Adjust this as per current typing speed
+    if(!finished){
+        sendToServer(myAvatar.x);
+        float tmp = receiveFromServer();
+        if(tmp != 0) oppAvatar.x = tmp;
     }
 
-    if(player2mx>player2x){
-        player2x += delta_time * 80.0;  // Adjust this as per current typing speed
+    if(myAvatar.x>myAvatar.curx){
+        myAvatar.curx += delta_time * 80.0;  // Adjust this as per current typing speed
     }
 
-    if(back){
-        notMatch = 0;
-        rec.color = White;
-        back = 0;
+    if(oppAvatar.x>oppAvatar.curx){
+        oppAvatar.curx += delta_time * 80.0;  // Adjust this as per current typing speed
     }
-    if(match){
-        rec.x += curWidth;
-        if(currentText[currentCharIndex] == '\n'){
-            rec.y += 1.5*fontHeight;
-            rec.x = textPosx;
-            currentCharIndex++;
-        }
-        curWidth = fontWidth[currentText[currentCharIndex]];
-        player1mx += movementPerMatch;
 
-        if(currentCharIndex == maxTextSize){
-            finished = 1;
-            endTime = SDL_GetTicks();
-            practice = 0;
-        }
+    updateButton(backButton);
+
+    if(match) updateObjects();
+
+    if(start && !finished){
+        calculatePerformance();
+        addPoint();
     }
+
     rec.color = notMatch? Red:White;
-    rec.width = curWidth;
 }
 
 void renderMultiPlayer(){
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    SDL_RenderCopy(renderer, boardTexture, NULL, NULL);
 
-    SDL_RenderCopy(renderer, spaceImageTexture, NULL, NULL);
-
-    SDL_Rect player1Rect = {player1x, player1y, player1Width, player1Height};
-    SDL_RenderCopy(renderer, player1ImageTexture, NULL, &player1Rect);
-
-    SDL_Rect player2Rect = {player2x, player2y, player2Width, player2Height};
-    SDL_RenderCopy(renderer, player2ImageTexture, NULL, &player2Rect);
-
-
-    char upper[400], lower[400];
+    renderButton(backButton);
     
-    strncpy(upper, currentText, currentCharIndex);
-    upper[currentCharIndex]='\0';
-    renderMultipleLines(renderer, comic, upper, Green, textPosx, mulTexty);
-    if(!currentCharIndex){
-        correctTextx = textPosx, correctTexty = mulTexty;
+    if(!finished){
+        renderText(renderer, comic, myAvatar.name, Orange, myAvatar.curx + 10, myAvatar.y - 20);
+        SDL_Rect player1Rect = {myAvatar.curx, myAvatar.y, myAvatar.w, myAvatar.h};
+        SDL_RenderCopy(renderer, myAvatar.texture, NULL, &player1Rect);
+
+        renderText(renderer, comic, oppAvatar.name, Orange, oppAvatar.curx + 10, oppAvatar.y - 20);
+        SDL_Rect player2Rect = {oppAvatar.curx, oppAvatar.y, oppAvatar.w, oppAvatar.h};
+        SDL_RenderCopy(renderer, oppAvatar.texture, NULL, &player2Rect);
+        
+        renderTextAndCursor(textPosx, mulTexty);
+    }else{
+        renderPerfomance();
     }
-
-    SDL_Rect rectangle = {rec.x, rec.y, rec.width, rec.height};
-    SDL_SetRenderDrawColor(renderer, rec.color.r, rec.color.g, rec.color.b, 130);
-    SDL_RenderFillRect(renderer, &rectangle);
-    
-    strcpy(lower, currentText + currentCharIndex);
-    renderMultipleLines(renderer, comic, lower , Orange, correctTextx, correctTexty);
-
     SDL_RenderPresent(renderer);
+}
+
+void cleanUpMultiplayer(){
+    if(!currentText)
+    free(currentText);
+    finished = 1;
+    notMatch = 0;
+    if(myAvatar.x > oppAvatar.x) win = 1;
+    else if(myAvatar.x < oppAvatar.x) loss = 1;
+    endTime = SDL_GetTicks();
+    close_socket();
 }
 
 void destroy_window(){
@@ -901,9 +904,11 @@ void destroy_window(){
     destroyButton(musicOnButton);
     destroyButton(retryButton);
     destroyButton(backButton);
+    destroyButton(easyButton);
+    destroyButton(mediumButton);
+    destroyButton(hardButton);
 
-    SDL_DestroyTexture(practiceBackgroundTexture);
-    SDL_DestroyTexture(spaceImageTexture);
+    SDL_DestroyTexture(boardTexture);
     SDL_DestroyTexture(player1ImageTexture);
     SDL_DestroyTexture(player2ImageTexture);
 

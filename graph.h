@@ -21,9 +21,9 @@ void resizePoints(SDL_Point points[], int n, SDL_Point center,int width, int hei
     }
 }
 
-void drawGraph(SDL_Renderer *renderer, SDL_Point points[], int pointCount,SDL_Color color,SDL_Point center,int width, int height){
 
-    resizePoints(points, pointCount, center, width, height);
+
+void drawGraph(SDL_Renderer *renderer, SDL_Point points[], int pointCount,SDL_Color color,SDL_Point center,int width, int height){
 
     SDL_Rect x_coordinate = {center.x, center.y, width + 10, 5};
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b,200);

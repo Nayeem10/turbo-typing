@@ -18,6 +18,8 @@ void sigint_handler(int sig) {
     server_running = 0;
 }
 
+char clientName[2][20];
+
 float clientInfo[2] = {20.0, 20.0};
 
 float stof(char *message) {
@@ -66,12 +68,15 @@ void serverOn() {
         exit(EXIT_FAILURE);
     }
     printf("Server listening on port %d...\n", PORT);
-    char *text = generate_random_text();
+    char *text = generate_random_text(2, 100);
     for (i = 0; i < 2; i++) {
         client_addr_len = sizeof(client_addr);
         client_socket[i] = accept(server_socket, (struct sockaddr *)&client_addr, &client_addr_len);
-        if(server_running)
-            send(client_socket[i], text, strlen(text),0);
+
+        if(server_running){
+            send(client_socket[i], text, 400, 0);
+            recv(client_socket[i], clientName[i], 16, 0);
+        }
         if (client_socket[i] < 0) {
             perror("Accept failed");
             exit(EXIT_FAILURE);
@@ -84,8 +89,13 @@ void serverOn() {
         }
     }
 
-   
-
+    if(server_running){
+        for(int i = 0; i < 2; i++){
+            char buffer[32];
+            sprintf(buffer, "%d%s", i, clientName[1 - i]);
+            send(client_socket[i], buffer, 32, 0);
+        }
+    }
     while (server_running) {
         FD_ZERO(&readfds);
 
@@ -130,20 +140,23 @@ void serverOn() {
     for (i = 0; i < 2; i++) {
         close(client_socket[i]);
     }
+
     close(server_socket);
 }
 
 int main() {
-    struct sigaction sa;
-    sa.sa_handler = sigint_handler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    if (sigaction(SIGINT, &sa, NULL) == -1) {
-        perror("sigaction");
-        exit(EXIT_FAILURE);
-    }
-    while(server_running){
-        serverOn();
-    }
+    
+    //while(server_running){
+        struct sigaction sa;
+        sa.sa_handler = sigint_handler;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = 0;
+        if (sigaction(SIGINT, &sa, NULL) == -1) {
+            perror("sigaction");
+            exit(EXIT_FAILURE);
+        }
+
+        serverOn();    
+    //}
     return 0;
 }

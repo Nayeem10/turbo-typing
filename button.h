@@ -30,7 +30,7 @@ Button* createButton(SDL_Renderer *renderer, char *normal, char *hover, char *pr
     SDL_Surface *surface = IMG_Load(normal);
     if (!surface) {
         fprintf(stderr, "Error loading image --> %s.\n",normal);
-        return;
+        return NULL;
     }
     button->texture[0] = SDL_CreateTextureFromSurface(renderer, surface);
 
@@ -66,17 +66,24 @@ void updateButton(Button *button){
         Mix_PlayChannel(0, sfx, 0);
     }
 
+    if(button->state[2] && mouseUp){
+        button->handler();
+        resetState(button);
+        return;
+    }
     if(mousePressed){
         button->state[0] = 0;
         button->state[1] = 0;
         button->state[2] = 1;
-    }else if(mouseUp){
-        button->handler();
     }else{
         button->state[0] = 0;
         button->state[1] = 1;
         button->state[2] = 0;
     }
+}
+
+void updateSpecialButton(Button *button[]){
+    //int size = sizeof(button) / sizeof(*button);
 }
 
 void renderButton(Button *button){

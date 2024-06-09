@@ -1,11 +1,14 @@
+#ifndef CONSTANT
+#define CONSTANT
+
 #define WIDTH 1800
 #define HEIGHT 1000
 
-#define FPS 60
+#define FPS 90
 #define FRAME_TARGET_TIME (1000/FPS)
 
 #define PORT 12345
-#define SERVER_IP "192.168.0.183"
+#define SERVER_IP "172.220.150.176"
 
 SDL_Color White = {255, 255, 255};
 SDL_Color Black = {0, 0, 0};
@@ -27,38 +30,44 @@ SDL_Color Navy = {0, 0, 128};
 SDL_Color Maroon = {128, 0, 0};
 SDL_Color Lime = {0, 255, 0};
 SDL_Color Aqua = {0, 255, 255};
+SDL_Color Silver = {100, 100, 100};
 
 typedef struct rectangle{
     float x, y;
     float width, height;
     SDL_Color color;
 } Rec;
+
 Rec rec;
-Rec startTypingBox = {760, 500, 280, 50, {0, 255, 255}};
-Rec playAgainBox = {760, 500, 280, 50, {0, 128, 128}};
-Rec practiceMode = {760, 450, 380, 50, {0, 255, 255}};
-Rec multiPlayerMode = {760, 550, 380, 50, {0, 255, 255}};
-Rec diff = {350, 440, 345, 80, {0, 255, 255}};
-Rec diff_e = {1097, 405, 210, 75, {0, 255, 255}};
-Rec diff_m = {1222, 516, 222, 78, {0, 255, 255}};
-Rec diff_h = {1097, 635, 210, 83, {0, 255, 255}};
-Rec opt = {350, 570, 345, 80, {0, 255, 255}};
-Rec opt_m = {1165, 450, 258, 102, {0, 255, 255}};
-Rec opt_s = {1165, 625, 258, 102, {0, 255, 255}};
+
+typedef struct Avatar {
+    float x, y, w, h;
+    float curx;
+    char name[200];
+    SDL_Texture *texture;
+} Avatar;
+
+Avatar myAvatar, oppAvatar;
+Avatar first = {20, 100, 200, 150, 20};
+Avatar second = {20, 250, 220, 100, 20};
 
 SDL_Rect retryBox = {1650, 860, 70, 70};
 SDL_Rect backBox = {1650, 50, 70, 70};
 SDL_Rect musicBox = {1700, 900, 60, 60};
 SDL_Rect profileBox = {1550, 50, 60, 60};
-SDL_Rect practiceBox = {150, 240, 700, 400};
-SDL_Rect multiplayerBox = {950, 240, 700, 400};
+SDL_Rect practiceBox = {200, 340, 600, 400};
+SDL_Rect multiplayerBox = {950, 340, 600, 400};
 SDL_Rect typingBox = {170, 140, 550, 60};
 SDL_Rect yesBox = {480, 280, 200, 60};
 SDL_Rect cancelBox = {220, 280, 200, 60};
+SDL_Rect easyBox = {300, 200, 300, 150};
+SDL_Rect mediumBox = {300, 400, 300, 150};
+SDL_Rect hardBox = {300, 600, 300, 150};
+SDL_Rect winnerBox = {900, 200, 400, 240};
+SDL_Rect loserBox = {900, 200, 400, 240};
 
 float textPosx = 80.0, textPosy = 200.0;
-
-float showTextx = 60, showTexty = 400.0;
+int mulTexty = 500;
 
 typedef struct Inputs{
     int pressedKey, mouseX, mouseY;
@@ -71,27 +80,12 @@ char *Font_Style[] = {
     "TTF/Arial.TTF"
 };
 
-char *Background[] = {
-    "1.jpg"
-};
-
-char *Images[] = {
-    "santa.png",
-    "space.jpg",
-    "player1.png",
-    "player2.png",
-    "profile.png",
-    "retry.png"
-};
-
 char *Music[] = {
     "sakura.mp3",
     "click.wav"
 };
 
-
-
-char username[1000];
+char username[32];
 
 char shift_map[] = {
     [' '] = ' ',
@@ -144,10 +138,4 @@ char shift_map[] = {
     ['z'] = 'Z'
 };
 
-char *Texts[] = {
-
-    "Good name in man and woman, dear my lord, Is the immediate jewel of their souls: Who steals my \npurse steals trash; 'tis something, nothing; 'Twas mine, 'tis his, and has been slave to thousands; \nBut he that filches from me my good name Robs me of that which not enriches him, And makes me \npoor indeed.",
-    "Maycomb was a tired, old town when i first knew it. \npeople moved slowly, they ambled across the square, shuffled \nin and out of the stores around it - everything that happened \nseemed to happen in slow motion.",
-    "SDL, O goddess, the anger of Achilles son of Peleus, that brought countless ills upon the Achaeans. \nMany a brave soul did it send hurrying down to Hades, and many a hero did it yield a prey to dogs \nand vultures, for so were the counsels of Jove fulfilled from the day on which the son of Atreus, \nking of men, and great Achilles, first fell out with one another.",
-
-};
+#endif

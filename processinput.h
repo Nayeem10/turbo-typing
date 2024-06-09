@@ -4,12 +4,13 @@
 bool shiftPressed = 0, mousePressed = 0;
 bool capsOn = 0;
 
+SDL_Event event;
 int pressedKey, mouseX, mouseY;
 bool keyUp = 0, keyDown = 0, mouseUp = 0, mouseDown = 0;
 
 void getMouseAndKeyboardState(){
     keyUp = 0, keyDown = 0, mouseUp = 0, mouseDown = 0;
-    SDL_Event event;
+    
     SDL_PollEvent(&event);
     switch(event.type){
 
