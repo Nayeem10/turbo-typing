@@ -7,7 +7,6 @@
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_mixer.h>
 #include <SDL2/SDL_ttf.h>
-#include <GL/gl.h>
 #include "constant.h"
 #include "randomtext.h"
 #include "server.h"
